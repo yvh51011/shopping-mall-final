@@ -88,12 +88,17 @@ function Login() {
 
   return (
     <div style={{ 
-      maxWidth: '500px', 
-      margin: '50px auto', 
-      padding: '30px',
-      fontFamily: 'Arial, sans-serif',
-      textAlign: 'center'
+      minHeight: '100vh',
+      backgroundColor: '#fff',
+      padding: '50px 20px'
     }}>
+      <div style={{ 
+        maxWidth: '500px', 
+        margin: '0 auto', 
+        padding: '30px',
+        fontFamily: 'Arial, sans-serif',
+        textAlign: 'center'
+      }}>
       <h1 style={{ fontSize: '2.5rem', marginBottom: '30px' }}>로그인</h1>
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: '20px', textAlign: 'left' }}>
@@ -195,6 +200,7 @@ function Login() {
             홈으로 돌아가기
           </Link>
         </p>
+      </div>
       </div>
     </div>
   );

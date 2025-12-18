@@ -20,14 +20,24 @@ const connectDB = async () => {
     }
     console.log('');
 
-    const conn = await mongoose.connect(mongoURI, {
+    // MongoDB Atlas 연결 옵션 설정
+    const isAtlas = mongoURI.includes('mongodb+srv://') || mongoURI.includes('atlas');
+    const connectionOptions = {
       serverSelectionTimeoutMS: 30000, // 30초로 증가 (Heroku 환경 고려)
       connectTimeoutMS: 30000, // 연결 타임아웃 30초
       socketTimeoutMS: 45000, // 소켓 타임아웃 45초
-      // MongoDB 6.0 이상에서는 더 이상 필요하지 않지만, 호환성을 위해 유지
-      // useNewUrlParser: true,
-      // useUnifiedTopology: true,
-    });
+    };
+
+    // MongoDB Atlas를 사용하는 경우 SSL/TLS 설정 추가
+    if (isAtlas) {
+      connectionOptions.tls = true;
+      connectionOptions.tlsAllowInvalidCertificates = false; // 프로덕션에서는 false 권장
+      connectionOptions.tlsAllowInvalidHostnames = false; // 프로덕션에서는 false 권장
+      // TLS 버전 명시 (필요한 경우)
+      // connectionOptions.tlsInsecure = false;
+    }
+
+    const conn = await mongoose.connect(mongoURI, connectionOptions);
 
     console.log(`✅ MongoDB 연결 성공!`);
     console.log(`📍 Host: ${conn.connection.host}`);
@@ -60,6 +70,11 @@ const connectDB = async () => {
       console.error('\n🚫 연결 거부: MongoDB 서버에 연결할 수 없습니다.');
     } else if (error.message.includes('timeout')) {
       console.error('\n⏱️  타임아웃: MongoDB 서버에 연결하는 데 시간이 너무 오래 걸립니다.');
+    } else if (error.message.includes('SSL') || error.message.includes('TLS') || error.message.includes('OPENSSL')) {
+      console.error('\n🔒 SSL/TLS 에러: MongoDB Atlas 연결 시 SSL/TLS 설정 문제가 발생했습니다.');
+      console.error('   - 연결 문자열에 SSL 파라미터가 올바르게 포함되어 있는지 확인하세요.');
+      console.error('   - MongoDB Atlas의 Network Access에서 IP 주소가 허용되어 있는지 확인하세요.');
+      console.error('   - 방화벽이나 프록시가 SSL 연결을 차단하지 않는지 확인하세요.');
     }
     
     console.error('\n가능한 원인:');
@@ -69,6 +84,7 @@ const connectDB = async () => {
     console.error('  4. 클러스터가 실행 중이 아닙니다.');
     console.error('  5. 인터넷 연결이 없습니다.');
     console.error('  6. 방화벽이나 네트워크 설정 문제');
+    console.error('  7. SSL/TLS 인증서 문제 (MongoDB Atlas의 경우)');
     
     // 환경 변수 확인
     const hasURI = !!(process.env.MONGODB_ATLAS_URI || process.env.MONGODB_ALTAS_URI);

@@ -28,10 +28,21 @@ const testConnection = async () => {
     console.log('연결 URI:', mongoURI_final.replace(/\/\/.*@/, '//***:***@')); // 비밀번호 숨김
     console.log('');
     
-    // 연결 시도
-    const conn = await mongoose.connect(mongoURI_final, {
+    // MongoDB Atlas 연결 옵션 설정
+    const isAtlas = mongoURI_final.includes('mongodb+srv://') || mongoURI_final.includes('atlas');
+    const connectionOptions = {
       serverSelectionTimeoutMS: 5000, // 5초 타임아웃
-    });
+    };
+
+    // MongoDB Atlas를 사용하는 경우 SSL/TLS 설정 추가
+    if (isAtlas) {
+      connectionOptions.tls = true;
+      connectionOptions.tlsAllowInvalidCertificates = false;
+      connectionOptions.tlsAllowInvalidHostnames = false;
+    }
+
+    // 연결 시도
+    const conn = await mongoose.connect(mongoURI_final, connectionOptions);
     
     console.log('✅ MongoDB 연결 성공!');
     console.log(`📍 Host: ${conn.connection.host}`);
@@ -51,17 +62,26 @@ const testConnection = async () => {
   } catch (error) {
     console.error('\n❌ MongoDB 연결 실패!');
     console.error('에러 메시지:', error.message);
+    
+    // SSL/TLS 에러 체크
+    if (error.message.includes('SSL') || error.message.includes('TLS') || error.message.includes('OPENSSL')) {
+      console.error('\n🔒 SSL/TLS 에러 감지!');
+      console.error('   - MongoDB Atlas 연결 시 SSL/TLS 설정 문제가 발생했습니다.');
+    }
+    
     console.error('\n가능한 원인:');
     console.error('  1. MONGODB_ATLAS_URI가 올바르지 않습니다.');
     console.error('  2. MongoDB Atlas의 Network Access에서 IP가 허용되지 않았습니다.');
     console.error('  3. 사용자명/비밀번호가 잘못되었습니다.');
     console.error('  4. 클러스터가 실행 중이 아닙니다.');
     console.error('  5. 인터넷 연결이 없습니다.');
+    console.error('  6. SSL/TLS 인증서 문제 (MongoDB Atlas의 경우)');
     process.exit(1);
   }
 };
 
 testConnection();
+
 
 
 
