@@ -7,10 +7,42 @@ const connectDB = require('./config/database');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// MongoDB 연결 (비동기 - 서버 시작을 막지 않음)
-connectDB().catch(err => {
-  console.error('MongoDB 연결 중 오류:', err);
+// MongoDB 연결 이벤트 리스너 설정
+mongoose.connection.on('connected', () => {
+  console.log('✅ MongoDB 연결됨');
+  console.log(`📍 Host: ${mongoose.connection.host}`);
+  console.log(`📦 Database: ${mongoose.connection.name}`);
 });
+
+mongoose.connection.on('error', (err) => {
+  console.error('❌ MongoDB 연결 오류:', err.message);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.warn('⚠️  MongoDB 연결 끊어짐');
+});
+
+// 프로세스 종료 시 MongoDB 연결 종료
+process.on('SIGINT', async () => {
+  await mongoose.connection.close();
+  console.log('MongoDB 연결이 종료되었습니다.');
+  process.exit(0);
+});
+
+// MongoDB 연결 시도
+connectDB().catch(err => {
+  console.error('MongoDB 초기 연결 실패:', err.message);
+});
+
+// MongoDB 연결 상태 주기적 확인 및 재연결 시도
+setInterval(() => {
+  if (mongoose.connection.readyState === 0) {
+    console.log('🔄 MongoDB 연결이 끊어졌습니다. 재연결 시도 중...');
+    connectDB().catch(err => {
+      console.error('MongoDB 재연결 실패:', err.message);
+    });
+  }
+}, 30000); // 30초마다 확인
 
 
 // 미들웨어
@@ -29,9 +61,54 @@ app.get('/', (req, res) => {
 
 // 헬스 체크 엔드포인트
 app.get('/api/health', (req, res) => {
+  const readyState = mongoose.connection.readyState;
+  const states = {
+    0: 'disconnected',
+    1: 'connected',
+    2: 'connecting',
+    3: 'disconnecting'
+  };
+  
   res.json({
     status: 'ok',
-    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    mongodb: {
+      state: states[readyState] || 'unknown',
+      readyState: readyState,
+      host: mongoose.connection.host || null,
+      name: mongoose.connection.name || null,
+      isConnected: readyState === 1
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
+// MongoDB 연결 상태 상세 확인 엔드포인트
+app.get('/api/mongodb-status', (req, res) => {
+  const readyState = mongoose.connection.readyState;
+  const states = {
+    0: 'disconnected',
+    1: 'connected',
+    2: 'connecting',
+    3: 'disconnecting'
+  };
+  
+  const mongoURI = process.env.MONGODB_ATLAS_URI || process.env.MONGODB_ALTAS_URI;
+  const hasURI = !!mongoURI;
+  
+  res.json({
+    connection: {
+      state: states[readyState] || 'unknown',
+      readyState: readyState,
+      isConnected: readyState === 1,
+      host: mongoose.connection.host || null,
+      name: mongoose.connection.name || null,
+      port: mongoose.connection.port || null
+    },
+    environment: {
+      hasMongoURI: hasURI,
+      uriPrefix: hasURI ? mongoURI.substring(0, 20) + '...' : 'not set',
+      nodeEnv: process.env.NODE_ENV || 'not set'
+    },
     timestamp: new Date().toISOString()
   });
 });

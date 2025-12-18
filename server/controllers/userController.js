@@ -3,6 +3,16 @@ const User = require('../models/User');
 // 모든 사용자 조회
 exports.getAllUsers = async (req, res) => {
   try {
+    // MongoDB 연결 상태 확인
+    const mongoose = require('mongoose');
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({
+        success: false,
+        message: '데이터베이스에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.',
+        error: 'MongoDB connection not ready'
+      });
+    }
+
     const users = await User.find().select('-password'); // password 필드 제외
     res.status(200).json({
       success: true,
@@ -10,10 +20,19 @@ exports.getAllUsers = async (req, res) => {
       data: users
     });
   } catch (error) {
+    // MongoDB 연결 타임아웃 에러 처리
+    if (error.message && error.message.includes('buffering timed out')) {
+      return res.status(503).json({
+        success: false,
+        message: '데이터베이스 연결이 시간 초과되었습니다. MongoDB Atlas 연결 설정을 확인해주세요.',
+        error: 'MongoDB connection timeout'
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: '사용자 조회 중 오류가 발생했습니다.',
-      error: error.message
+      error: process.env.NODE_ENV === 'production' ? undefined : error.message
     });
   }
 };
