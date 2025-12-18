@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Product = require('../models/Product');
 
 // 공통 에러 핸들러
@@ -101,7 +102,8 @@ exports.getAllProducts = async (req, res) => {
     const total = await Product.countDocuments(searchQuery);
     const totalPages = Math.ceil(total / limit);
 
-    console.log(`상품 조회 성공: ${products.length}개 (전체 ${total}개, 페이지 ${page}/${totalPages})`);
+    console.log(`✅ 상품 조회 성공: ${products.length}개 (전체 ${total}개, 페이지 ${page}/${totalPages})`);
+    console.log(`📋 조회된 상품 ID 목록:`, products.map(p => p._id || p.productId));
 
     res.status(200).json({
       success: true,
@@ -211,10 +213,14 @@ exports.createProduct = async (req, res) => {
     }
 
     // 가격 유효성 검증
-    if (!validatePrice(price)) {
+    const priceNumber = Number(price);
+    if (isNaN(priceNumber) || priceNumber < 0) {
+      console.log('가격 유효성 검증 실패:', { price, priceNumber });
       return res.status(400).json({
         success: false,
-        message: '가격은 0 이상의 숫자여야 합니다.'
+        message: '가격은 0 이상의 숫자여야 합니다.',
+        receivedPrice: price,
+        priceType: typeof price
       });
     }
 
@@ -237,7 +243,7 @@ exports.createProduct = async (req, res) => {
     // 상품 생성 데이터 구성
     const productData = {
       name: name.trim(),
-      price: Number(price),
+      price: priceNumber, // 이미 검증된 숫자 사용
       image: image.trim(),
       description: description.trim(),
       link: link.trim(),
@@ -252,24 +258,53 @@ exports.createProduct = async (req, res) => {
     // 등록자 정보 추가 (요청 헤더나 body에서 가져오기)
     // 실제 구현 시 인증 미들웨어에서 req.user를 설정해야 함
     if (req.body.createdBy) {
-      if (mongoose.Types.ObjectId.isValid(req.body.createdBy)) {
-        productData.createdBy = req.body.createdBy;
-      } else {
-        return res.status(400).json({
-          success: false,
-          message: '유효하지 않은 등록자 ID입니다.'
-        });
+      const createdById = typeof req.body.createdBy === 'string' 
+        ? req.body.createdBy.trim() 
+        : String(req.body.createdBy);
+      
+      if (createdById && createdById !== '') {
+        if (mongoose.Types.ObjectId.isValid(createdById)) {
+          // ObjectId로 변환하여 저장 (Mongoose가 자동으로 처리)
+          productData.createdBy = createdById; // 문자열로 저장하면 Mongoose가 자동으로 ObjectId로 변환
+          console.log('✅ 등록자 ID 추가:', createdById);
+        } else {
+          console.warn('⚠️ 유효하지 않은 등록자 ID:', createdById);
+          // createdBy가 유효하지 않아도 상품 등록은 진행 (선택적 필드)
+        }
       }
+    } else {
+      console.log('ℹ️ 등록자 정보가 없습니다. 상품은 등록되지만 등록자 정보는 없습니다.');
     }
 
-    // 상품 생성
-    console.log('상품 생성 데이터:', productData);
-    const product = await Product.create(productData);
-    console.log('상품 생성 성공:', {
-      id: product._id,
-      productId: product.productId,
-      name: product.name
-    });
+    // 상품 생성 (로깅용 - ObjectId는 문자열로 표시)
+    const logData = { ...productData };
+    if (logData.createdBy) {
+      logData.createdBy = String(logData.createdBy);
+    }
+    console.log('📦 상품 생성 데이터:', JSON.stringify(logData, null, 2));
+    
+    // MongoDB 연결 상태 확인
+    if (mongoose.connection.readyState !== 1) {
+      console.error('❌ MongoDB가 연결되지 않았습니다. readyState:', mongoose.connection.readyState);
+      return res.status(500).json({
+        success: false,
+        message: '데이터베이스 연결이 없습니다. 서버를 재시작해주세요.'
+      });
+    }
+    
+    let product;
+    try {
+      product = await Product.create(productData);
+      console.log('✅ 상품 생성 성공:', {
+        id: product._id,
+        productId: product.productId,
+        name: product.name,
+        createdBy: product.createdBy
+      });
+    } catch (createError) {
+      console.error('❌ Product.create() 오류:', createError);
+      throw createError; // 상위 catch 블록으로 전달
+    }
 
     res.status(201).json({
       success: true,
@@ -277,7 +312,43 @@ exports.createProduct = async (req, res) => {
       data: product
     });
   } catch (error) {
-    console.error('상품 생성 오류:', error);
+    console.error('❌ 상품 생성 오류:', error);
+    console.error('📋 에러 상세:', {
+      name: error.name,
+      message: error.message,
+      code: error.code,
+      keyPattern: error.keyPattern,
+      keyValue: error.keyValue,
+      errors: error.errors,
+      stack: error.stack ? error.stack.split('\n').slice(0, 5).join('\n') : 'No stack trace'
+    });
+    
+    // ValidationError인 경우 더 자세한 정보 제공
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => ({
+        field: err.path,
+        message: err.message
+      }));
+      console.error('📝 유효성 검사 오류:', validationErrors);
+      return res.status(400).json({
+        success: false,
+        message: '입력 데이터가 유효하지 않습니다.',
+        errors: validationErrors.map(e => `${e.field}: ${e.message}`)
+      });
+    }
+    
+    // 중복 키 에러
+    if (error.code === 11000) {
+      const duplicateField = Object.keys(error.keyPattern || {})[0];
+      console.error('🔄 중복 키 오류:', duplicateField, error.keyValue);
+      return res.status(400).json({
+        success: false,
+        message: `이미 존재하는 ${duplicateField}입니다.`,
+        duplicateField,
+        duplicateValue: error.keyValue
+      });
+    }
+    
     handleError(error, res, '상품 등록 중 오류가 발생했습니다.');
   }
 };

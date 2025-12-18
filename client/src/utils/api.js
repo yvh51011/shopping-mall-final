@@ -188,16 +188,37 @@ export const getProducts = async (params = {}) => {
     const queryString = queryParams.toString();
     const url = `${API_BASE_URL}/products${queryString ? `?${queryString}` : ''}`;
     
+    console.log('상품 목록 API 호출:', url);
+    
     const response = await fetch(url);
     
+    console.log('상품 목록 API 응답 상태:', response.status, response.statusText);
+    
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('상품 목록 API 오류 응답:', errorText);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     
     const data = await response.json();
+    console.log('상품 목록 API 응답 데이터:', {
+      success: data.success,
+      count: data.count,
+      total: data.total,
+      dataLength: data.data ? data.data.length : 0
+    });
+    
     return data;
   } catch (error) {
     console.error('Get products error:', error);
+    // 네트워크 오류인지 확인
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      return {
+        success: false,
+        message: '서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.',
+        error: error.message
+      };
+    }
     return {
       success: false,
       message: '상품 조회 중 오류가 발생했습니다.',

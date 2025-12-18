@@ -55,7 +55,8 @@ const productSchema = new mongoose.Schema({
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    index: true
+    index: true,
+    required: false // 선택적 필드로 변경
   }
 }, {
   timestamps: true

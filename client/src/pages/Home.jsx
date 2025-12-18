@@ -222,6 +222,8 @@ function Home() {
         setLoading(true);
         setError('');
         
+        console.log('🔄 상품 목록 가져오기 시작...');
+        
         // 모든 상품을 가져오기 위해 큰 limit 값 사용
         const result = await getProducts({
           page: 1,
@@ -230,22 +232,29 @@ function Home() {
           sortOrder: 'desc' // 최신순
         });
 
-        console.log('상품 조회 응답:', result);
+        console.log('📦 상품 조회 응답:', result);
 
         // 서버 응답 구조: { success: true, data: [...], total, ... }
-        if (result.success && result.data && Array.isArray(result.data)) {
-          setPrograms(result.data);
-          console.log(`✅ ${result.data.length}개의 상품을 불러왔습니다.`);
-        } else if (result.success && result.data) {
-          // data가 배열이 아닌 경우도 처리
-          setPrograms(Array.isArray(result.data) ? result.data : []);
+        if (result && result.success && result.data) {
+          if (Array.isArray(result.data)) {
+            setPrograms(result.data);
+            console.log(`✅ ${result.data.length}개의 상품을 불러왔습니다. (전체 ${result.total || result.data.length}개)`);
+            
+            // 상품이 없을 때도 로그 출력
+            if (result.data.length === 0) {
+              console.log('⚠️ 등록된 상품이 없습니다.');
+            }
+          } else {
+            console.warn('⚠️ 응답 데이터가 배열이 아닙니다:', typeof result.data);
+            setPrograms([]);
+          }
         } else {
-          const errorMessage = result.message || '상품을 불러오는데 실패했습니다.';
+          const errorMessage = result?.message || '상품을 불러오는데 실패했습니다.';
           setError(errorMessage);
-          console.error('상품 조회 실패:', result);
+          console.error('❌ 상품 조회 실패:', result);
         }
       } catch (err) {
-        console.error('상품 조회 중 오류:', err);
+        console.error('❌ 상품 조회 중 오류:', err);
         setError('상품을 불러오는 중 오류가 발생했습니다: ' + err.message);
       } finally {
         setLoading(false);

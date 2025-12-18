@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { getCurrentUser } from '../utils/api';
+import { useNavigate, Link, useParams } from 'react-router-dom';
+import { getCurrentUser, getProductById } from '../utils/api';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -25,6 +25,8 @@ if (import.meta.env.DEV) {
 
 function CreateProduct() {
   const navigate = useNavigate();
+  const { id } = useParams(); // 수정 모드인지 확인하기 위한 ID
+  const isEditMode = !!id; // id가 있으면 수정 모드
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
@@ -57,7 +59,13 @@ function CreateProduct() {
     }
 
     setUser(currentUser);
-    setLoading(false);
+    
+    // 수정 모드인 경우 기존 상품 데이터 로드
+    if (isEditMode) {
+      fetchProductData();
+    } else {
+      setLoading(false);
+    }
 
     // 서버 연결 상태 확인
     const checkServerConnection = async () => {
@@ -82,7 +90,39 @@ function CreateProduct() {
     };
 
     checkServerConnection();
-  }, [navigate]);
+  }, [navigate, id, isEditMode]);
+
+  // 수정 모드에서 기존 상품 데이터 가져오기
+  const fetchProductData = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      const response = await getProductById(id);
+      
+      if (response.success && response.data) {
+        const product = response.data;
+        setFormData({
+          name: product.name || '',
+          price: product.price?.toString() || '',
+          image: product.image || '',
+          description: product.description || '',
+          link: product.link || '',
+          developer: product.developer || ''
+        });
+        setImagePreview(product.image || '');
+        console.log('✅ 상품 데이터 로드 성공:', product);
+      } else {
+        setError(response.message || '상품을 찾을 수 없습니다.');
+        console.error('❌ 상품 데이터 로드 실패:', response);
+      }
+    } catch (error) {
+      console.error('❌ 상품 데이터 로드 오류:', error);
+      setError('상품 정보를 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -217,7 +257,8 @@ function CreateProduct() {
 
     setSubmitting(true);
     try {
-      console.log('상품 등록 시도:', {
+      const actionText = isEditMode ? '수정' : '등록';
+      console.log(`상품 ${actionText} 시도:`, {
         name: formData.name.trim(),
         price: price,
         image: formData.image.trim(),
@@ -234,24 +275,41 @@ function CreateProduct() {
         return;
       }
 
-      // 상품 등록 API 호출
-      const response = await fetch(`${API_BASE_URL}/products`, {
-        method: 'POST',
+      // 상품 등록/수정 API 호출
+      const url = isEditMode 
+        ? `${API_BASE_URL}/products/${id}`
+        : `${API_BASE_URL}/products`;
+      
+      const method = isEditMode ? 'PUT' : 'POST';
+      
+      const requestBody = isEditMode
+        ? {
+            name: formData.name.trim(),
+            price: price,
+            image: formData.image.trim(),
+            description: formData.description.trim(),
+            link: formData.link.trim(),
+            developer: formData.developer.trim()
+          }
+        : {
+            name: formData.name.trim(),
+            price: price,
+            image: formData.image.trim(),
+            description: formData.description.trim(),
+            link: formData.link.trim(),
+            developer: formData.developer.trim(),
+            createdBy: currentUser._id // 등록자 정보 추가
+          };
+
+      const response = await fetch(url, {
+        method: method,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          price: price,
-          image: formData.image.trim(),
-          description: formData.description.trim(),
-          link: formData.link.trim(),
-          developer: formData.developer.trim(),
-          createdBy: currentUser._id // 등록자 정보 추가
-        }),
+        body: JSON.stringify(requestBody),
       });
 
-      console.log('상품 등록 응답 상태:', response.status, response.statusText);
+      console.log(`상품 ${actionText} 응답 상태:`, response.status, response.statusText);
 
       // 응답 파싱
       let data;
@@ -263,7 +321,7 @@ function CreateProduct() {
           return;
         }
         data = JSON.parse(text);
-        console.log('상품 등록 응답 데이터:', data);
+        console.log(`상품 ${actionText} 응답 데이터:`, data);
       } catch (parseError) {
         console.error('JSON 파싱 오류:', parseError);
         setError('서버 응답을 처리할 수 없습니다.');
@@ -273,41 +331,62 @@ function CreateProduct() {
 
       // 응답 상태 확인
       if (!response.ok) {
-        const errorMessage = data.message || data.error || `서버 오류 (${response.status})`;
-        if (data.missingFields && data.missingFields.length > 0) {
-          setError(`${errorMessage}: ${data.missingFields.join(', ')}`);
-        } else {
-          setError(errorMessage);
+        let errorMessage = data.message || data.error || `서버 오류 (${response.status})`;
+        
+        // 에러 배열이 있는 경우
+        if (data.errors && Array.isArray(data.errors)) {
+          errorMessage = `${errorMessage}: ${data.errors.join(', ')}`;
         }
+        
+        // 누락된 필드가 있는 경우
+        if (data.missingFields && data.missingFields.length > 0) {
+          errorMessage = `${errorMessage}\n누락된 필드: ${data.missingFields.join(', ')}`;
+        }
+        
+        console.error(`상품 ${actionText} 실패:`, {
+          status: response.status,
+          statusText: response.statusText,
+          data: data
+        });
+        
+        setError(errorMessage);
         setSubmitting(false);
         return;
       }
 
       // 성공 처리
       if (data.success && data.data) {
-        console.log('상품 등록 성공:', data.data);
-        alert('상품이 성공적으로 등록되었습니다!');
-        // 폼 초기화
-        setFormData({
-          name: '',
-          price: '',
-          image: '',
-          description: '',
-          link: '',
-          developer: ''
-        });
-        setImagePreview('');
-        // 관리자 페이지로 이동
-        navigate('/admin');
+        console.log(`상품 ${actionText} 성공:`, data.data);
+        alert(`상품이 성공적으로 ${actionText}되었습니다!`);
+        
+        if (isEditMode) {
+          // 수정 모드: 상품 상세 페이지로 이동
+          navigate(`/admin/products/${id}`);
+        } else {
+          // 생성 모드: 폼 초기화 후 관리자 페이지로 이동
+          setFormData({
+            name: '',
+            price: '',
+            image: '',
+            description: '',
+            link: '',
+            developer: ''
+          });
+          setImagePreview('');
+          navigate('/admin');
+        }
       } else {
-        setError(data.message || '상품 등록에 실패했습니다.');
+        const errorMsg = data.message || `상품 ${actionText}에 실패했습니다.`;
+        console.error(`상품 ${actionText} 실패 (success가 false):`, data);
+        setError(errorMsg);
       }
     } catch (err) {
-      console.error('Product creation error:', err);
+      const actionText = isEditMode ? '수정' : '등록';
+      console.error(`Product ${actionText} error:`, err);
       if (err instanceof TypeError && err.message.includes('fetch')) {
         setError('서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요. (서버를 시작하려면: cd server && npm run dev)');
       } else {
-        setError('상품 등록 중 오류가 발생했습니다: ' + err.message);
+        setError(`상품 ${actionText} 중 오류가 발생했습니다: ` + err.message);
       }
     } finally {
       setSubmitting(false);
@@ -332,12 +411,13 @@ function CreateProduct() {
 
   return (
     <div style={{
-      minHeight: '100vh',
+      height: '100vh',
       backgroundColor: '#f5f5f5',
       color: '#333',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
       overflowY: 'auto',
-      overflowX: 'hidden'
+      overflowX: 'hidden',
+      position: 'relative'
     }}>
       {/* 헤더 */}
       <header style={{
@@ -390,7 +470,7 @@ function CreateProduct() {
           marginBottom: '30px',
           color: '#333'
         }}>
-          새 상품 등록
+          {isEditMode ? '상품 정보 수정' : '새 상품 등록'}
         </h1>
 
         <form onSubmit={handleSubmit} style={{
@@ -773,7 +853,9 @@ function CreateProduct() {
                 }
               }}
             >
-              {submitting ? '등록 중...' : '상품 등록'}
+              {submitting 
+                ? (isEditMode ? '수정 중...' : '등록 중...') 
+                : (isEditMode ? '상품 수정' : '상품 등록')}
             </button>
           </div>
         </form>
