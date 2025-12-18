@@ -78,14 +78,16 @@ function Navbar() {
         onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}>
           전북대학교 영어영문학과
         </Link>
-        <Link to="/" style={{
-          color: '#90EE90',
-          textDecoration: 'none',
-          fontSize: '1rem',
-          transition: 'opacity 0.2s'
-        }}
-        onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
-        onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}>
+        <Link 
+          to="/#programs" 
+          style={{
+            color: '#90EE90',
+            textDecoration: 'none',
+            fontSize: '1rem',
+            transition: 'opacity 0.2s'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
+          onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}>
           코드로 세상을 바꾸다
         </Link>
         

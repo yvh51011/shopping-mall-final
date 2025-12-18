@@ -9,10 +9,15 @@ const styles = {
   container: {
     fontFamily: 'Arial, sans-serif',
     minHeight: '100vh',
+    width: '100%',
     backgroundColor: '#0a0a0a',
     color: '#fff',
     position: 'relative',
-    overflow: 'hidden'
+    overflowX: 'hidden',
+    overflowY: 'auto',
+    margin: 0,
+    padding: 0,
+    boxSizing: 'border-box'
   },
   heroSection: {
     minHeight: '100vh',
@@ -272,6 +277,18 @@ function Home() {
     });
   };
 
+  // URL 해시 확인하여 상품 목록 섹션으로 스크롤
+  useEffect(() => {
+    if (window.location.hash === '#programs') {
+      // 약간의 지연을 두어 DOM이 완전히 렌더링된 후 스크롤
+      setTimeout(() => {
+        scrollToPrograms();
+        // 해시 제거 (선택사항)
+        window.history.replaceState(null, '', window.location.pathname);
+      }, 100);
+    }
+  }, []);
+
   return (
     <div style={styles.container}>
       <Navbar />
@@ -308,7 +325,7 @@ function Home() {
       </div>
 
       {/* 프로그램 소개 섹션 */}
-      <div ref={programsSectionRef} style={styles.sectionContainer}>
+      <div id="programs-section" ref={programsSectionRef} style={styles.sectionContainer}>
         <h2 style={styles.sectionTitle}>Our Web Programs</h2>
         <p style={{ 
           textAlign: 'center', 
