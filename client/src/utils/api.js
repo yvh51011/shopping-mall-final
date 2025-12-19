@@ -1,9 +1,10 @@
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // 서버 연결 테스트
 export const testServerConnection = async () => {
   try {
-    const response = await fetch('http://localhost:5000/api/health');
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const response = await fetch(`${apiUrl}/health`);
     const data = await response.json();
     console.log('서버 연결 상태:', data);
     return data;
