@@ -9,13 +9,18 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ||
   (import.meta.env.DEV ? '/api' : (() => {
     console.error('❌ VITE_API_BASE_URL 환경 변수가 설정되지 않았습니다!');
     console.error('프로덕션 환경에서는 반드시 VITE_API_BASE_URL을 설정해야 합니다.');
-    return '';
+    // 프로덕션에서도 기본값 제공 (Heroku 백엔드)
+    return 'https://shpping-mall-backend-418e06a80f33.herokuapp.com/api';
   })());
 
-// API URL 로깅 (개발 환경에서만)
-if (import.meta.env.DEV) {
-  console.log('🔗 API Base URL:', API_BASE_URL || '프록시 사용 (/api)');
-}
+// API URL 로깅 (모든 환경에서)
+console.log('🔗 API Base URL:', API_BASE_URL || '프록시 사용 (/api)');
+console.log('🔍 환경 변수 확인:', {
+  VITE_API_BASE_URL: import.meta.env.VITE_API_BASE_URL,
+  MODE: import.meta.env.MODE,
+  DEV: import.meta.env.DEV,
+  PROD: import.meta.env.PROD
+});
 
 // axios 인스턴스 생성
 const api = axios.create({
