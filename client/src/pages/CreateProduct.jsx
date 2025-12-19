@@ -6,19 +6,24 @@ import { getCurrentUser, getProductById, createProduct, updateProduct, testServe
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
-// 환경 변수 검증
-const isCloudinaryConfigured = CLOUDINARY_CLOUD_NAME && 
-  CLOUDINARY_CLOUD_NAME !== 'your_cloud_name' && 
+// 환경 변수 검증 (더 엄격한 검증)
+const isCloudinaryConfigured = 
+  CLOUDINARY_CLOUD_NAME && 
+  typeof CLOUDINARY_CLOUD_NAME === 'string' &&
   CLOUDINARY_CLOUD_NAME.trim() !== '' &&
+  CLOUDINARY_CLOUD_NAME !== 'your_cloud_name' &&
   CLOUDINARY_UPLOAD_PRESET && 
+  typeof CLOUDINARY_UPLOAD_PRESET === 'string' &&
   CLOUDINARY_UPLOAD_PRESET.trim() !== '';
 
-// 개발 환경에서 환경 변수 확인 로그
-if (import.meta.env.DEV) {
-  console.log('🔍 Cloudinary 환경 변수 확인:');
-  console.log('   CLOUDINARY_CLOUD_NAME:', CLOUDINARY_CLOUD_NAME ? `${CLOUDINARY_CLOUD_NAME.substring(0, 4)}...` : '❌ 없음');
-  console.log('   CLOUDINARY_UPLOAD_PRESET:', CLOUDINARY_UPLOAD_PRESET || '❌ 없음');
-  console.log('   설정 완료:', isCloudinaryConfigured ? '✅' : '❌');
+// 모든 환경에서 환경 변수 확인 로그 (디버깅용)
+console.log('🔍 Cloudinary 환경 변수 확인:');
+console.log('   CLOUDINARY_CLOUD_NAME:', CLOUDINARY_CLOUD_NAME ? `${CLOUDINARY_CLOUD_NAME.substring(0, 4)}...` : '❌ 없음');
+console.log('   CLOUDINARY_UPLOAD_PRESET:', CLOUDINARY_UPLOAD_PRESET ? `${CLOUDINARY_UPLOAD_PRESET.substring(0, 4)}...` : '❌ 없음');
+console.log('   설정 완료:', isCloudinaryConfigured ? '✅' : '❌');
+if (!isCloudinaryConfigured) {
+  console.warn('⚠️ Cloudinary 환경 변수가 설정되지 않았거나 서버를 재시작하지 않았습니다.');
+  console.warn('   .env 파일을 확인하고 프론트엔드 서버를 재시작해주세요.');
 }
 
 function CreateProduct() {
@@ -525,14 +530,24 @@ function CreateProduct() {
             {!isCloudinaryConfigured && (
               <div style={{
                 padding: '12px',
-                backgroundColor: '#e3f2fd',
-                color: '#1565c0',
+                backgroundColor: '#fff3cd',
+                color: '#856404',
                 borderRadius: '6px',
                 marginBottom: '12px',
                 fontSize: '0.9rem',
-                border: '1px solid #90caf9'
+                border: '1px solid #ffc107'
               }}>
-                ℹ️ Cloudinary를 사용하려면 .env 파일에 VITE_CLOUDINARY_CLOUD_NAME과 VITE_CLOUDINARY_UPLOAD_PRESET을 설정하고 서버를 재시작하세요. (선택사항: URL을 직접 입력할 수도 있습니다)
+                ⚠️ Cloudinary 설정이 감지되지 않았습니다. 
+                <br />
+                .env 파일에 VITE_CLOUDINARY_CLOUD_NAME과 VITE_CLOUDINARY_UPLOAD_PRESET이 설정되어 있다면, 
+                <strong> 프론트엔드 서버를 재시작</strong>해주세요.
+                <br />
+                (선택사항: URL을 직접 입력할 수도 있습니다)
+                <br />
+                <small style={{ fontSize: '0.85rem', opacity: 0.8 }}>
+                  현재 값: CLOUD_NAME={CLOUDINARY_CLOUD_NAME ? '설정됨' : '없음'}, 
+                  PRESET={CLOUDINARY_UPLOAD_PRESET ? '설정됨' : '없음'}
+                </small>
               </div>
             )}
             <div style={{

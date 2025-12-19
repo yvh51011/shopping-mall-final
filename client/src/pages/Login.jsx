@@ -67,6 +67,8 @@ function Login() {
       console.log('로그인 응답:', response);
       
       if (response && response.success === true) {
+        // 로그인 성공 - Navbar 업데이트를 위한 이벤트 발생
+        window.dispatchEvent(new Event('userLogin'));
         // 로그인 성공 - 홈으로 이동
         console.log('로그인 성공, 홈으로 이동');
         setTimeout(() => {

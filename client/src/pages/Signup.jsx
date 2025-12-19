@@ -65,6 +65,8 @@ function Signup() {
       const response = await register(userData);
       
       if (response.success) {
+        // 회원가입 성공 - Navbar 업데이트를 위한 이벤트 발생
+        window.dispatchEvent(new Event('userLogin'));
         alert('회원가입에 성공했습니다!');
         navigate('/');
       } else {

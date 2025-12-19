@@ -34,6 +34,18 @@ const api = axios.create({
 // 요청 인터셉터 (토큰 추가 등)
 api.interceptors.request.use(
   (config) => {
+    // 실제 요청 URL 로깅
+    const fullUrl = config.baseURL 
+      ? (config.baseURL.endsWith('/') ? config.baseURL.slice(0, -1) : config.baseURL) + 
+        (config.url.startsWith('/') ? config.url : '/' + config.url)
+      : config.url;
+    console.log('🌐 API 요청:', {
+      method: config.method?.toUpperCase(),
+      url: fullUrl,
+      baseURL: config.baseURL,
+      path: config.url
+    });
+    
     // 로컬 스토리지에서 사용자 정보 가져오기
     const userStr = localStorage.getItem('user');
     if (userStr) {
