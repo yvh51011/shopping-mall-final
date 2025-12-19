@@ -342,3 +342,30 @@ export const clearCart = () => {
     return { success: false, message: '장바구니를 비우는 중 오류가 발생했습니다.' };
   }
 };
+
+// 주문 생성
+export const createOrder = async (userId, shippingInfo, paymentMethod = 'other', paymentInfo = null) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/orders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId,
+        shippingInfo,
+        paymentMethod,
+        paymentInfo
+      }),
+    });
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Create order error:', error);
+    return {
+      success: false,
+      message: '주문 생성 중 오류가 발생했습니다: ' + error.message,
+    };
+  }
+};
