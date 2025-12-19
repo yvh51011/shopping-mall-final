@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
-import { getCurrentUser, getProductById } from '../utils/api';
-
-const API_BASE_URL = 'http://localhost:5000/api';
+import { getCurrentUser, getProductById, createProduct, updateProduct, testServerConnection } from '../utils/api';
 
 // Cloudinary 설정 (환경 변수에서 가져오기)
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
@@ -68,28 +66,13 @@ function CreateProduct() {
     }
 
     // 서버 연결 상태 확인
-    const checkServerConnection = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/health`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          console.log('✅ 서버 연결 확인됨:', data);
-        } else {
-          console.warn('⚠️ 서버 응답 오류:', response.status);
-          setError(`서버가 정상적으로 응답하지 않습니다. (상태 코드: ${response.status})`);
-        }
-      } catch (err) {
-        console.error('❌ 서버 연결 실패:', err);
-        setError('서버에 연결할 수 없습니다. 서버를 시작해주세요.\n\n터미널에서 다음 명령어를 실행하세요:\ncd server\nnpm run dev');
+    testServerConnection().then(status => {
+      if (status.status === 'error') {
+        setError('서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.');
+      } else {
+        console.log('✅ 서버 연결 확인됨:', status);
       }
-    };
-
-    checkServerConnection();
+    });
   }, [navigate, id, isEditMode]);
 
   // 수정 모드에서 기존 상품 데이터 가져오기
@@ -147,8 +130,9 @@ function CreateProduct() {
 
     // 환경 변수 확인
     if (!isCloudinaryConfigured) {
-      setError('Cloudinary 설정이 완료되지 않았습니다. .env 파일에 VITE_CLOUDINARY_CLOUD_NAME과 VITE_CLOUDINARY_UPLOAD_PRESET을 설정하고 서버를 재시작해주세요.');
-      console.error('Cloudinary 환경 변수 누락:', {
+      // 에러 대신 안내 메시지 표시
+      alert('Cloudinary를 사용하려면 .env 파일에 VITE_CLOUDINARY_CLOUD_NAME과 VITE_CLOUDINARY_UPLOAD_PRESET을 설정하고 서버를 재시작해주세요.\n\n또는 아래 입력란에 이미지 URL을 직접 입력할 수 있습니다.');
+      console.warn('Cloudinary 환경 변수 누락:', {
         cloudName: CLOUDINARY_CLOUD_NAME,
         uploadPreset: CLOUDINARY_UPLOAD_PRESET
       });
@@ -276,66 +260,36 @@ function CreateProduct() {
       }
 
       // 상품 등록/수정 API 호출
-      const url = isEditMode 
-        ? `${API_BASE_URL}/products/${id}`
-        : `${API_BASE_URL}/products`;
-      
-      const method = isEditMode ? 'PUT' : 'POST';
-      
-      const requestBody = isEditMode
-        ? {
-            name: formData.name.trim(),
-            price: price,
-            image: formData.image.trim(),
-            description: formData.description.trim(),
-            link: formData.link.trim(),
-            developer: formData.developer.trim()
-          }
-        : {
-            name: formData.name.trim(),
-            price: price,
-            image: formData.image.trim(),
-            description: formData.description.trim(),
-            link: formData.link.trim(),
-            developer: formData.developer.trim(),
-            createdBy: currentUser._id // 등록자 정보 추가
-          };
+      const requestBody = {
+        name: formData.name.trim(),
+        price: price,
+        image: formData.image.trim(),
+        description: formData.description.trim(),
+        link: formData.link.trim(),
+        developer: formData.developer.trim()
+      };
 
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      console.log(`상품 ${actionText} 응답 상태:`, response.status, response.statusText);
-
-      // 응답 파싱
-      let data;
-      try {
-        const text = await response.text();
-        if (!text) {
-          setError('서버로부터 응답을 받지 못했습니다.');
-          setSubmitting(false);
-          return;
-        }
-        data = JSON.parse(text);
-        console.log(`상품 ${actionText} 응답 데이터:`, data);
-      } catch (parseError) {
-        console.error('JSON 파싱 오류:', parseError);
-        setError('서버 응답을 처리할 수 없습니다.');
-        setSubmitting(false);
-        return;
+      // 등록 모드인 경우에만 createdBy 추가
+      if (!isEditMode) {
+        requestBody.createdBy = currentUser._id;
       }
 
+      console.log(`상품 ${actionText} 요청 데이터:`, requestBody);
+
+      // API 함수 사용
+      const response = isEditMode 
+        ? await updateProduct(id, requestBody)
+        : await createProduct(requestBody);
+
+      console.log(`상품 ${actionText} 응답 데이터:`, response);
+
       // 응답 상태 확인
-      if (!response.ok) {
-        let errorMessage = data.message || data.error || `서버 오류 (${response.status})`;
+      if (!response.success) {
+        let errorMessage = response.message || response.error || `서버 오류`;
         
         // 에러 배열이 있는 경우
-        if (data.errors && Array.isArray(data.errors)) {
-          errorMessage = `${errorMessage}: ${data.errors.join(', ')}`;
+        if (response.errors && Array.isArray(response.errors)) {
+          errorMessage = `${errorMessage}: ${response.errors.join(', ')}`;
         }
         
         // 누락된 필드가 있는 경우
@@ -376,8 +330,8 @@ function CreateProduct() {
           navigate('/admin');
         }
       } else {
-        const errorMsg = data.message || `상품 ${actionText}에 실패했습니다.`;
-        console.error(`상품 ${actionText} 실패 (success가 false):`, data);
+        const errorMsg = response.message || `상품 ${actionText}에 실패했습니다.`;
+        console.error(`상품 ${actionText} 실패 (success가 false):`, response);
         setError(errorMsg);
       }
     } catch (err) {
@@ -571,13 +525,14 @@ function CreateProduct() {
             {!isCloudinaryConfigured && (
               <div style={{
                 padding: '12px',
-                backgroundColor: '#fff3cd',
-                color: '#856404',
+                backgroundColor: '#e3f2fd',
+                color: '#1565c0',
                 borderRadius: '6px',
                 marginBottom: '12px',
-                fontSize: '0.9rem'
+                fontSize: '0.9rem',
+                border: '1px solid #90caf9'
               }}>
-                ⚠️ Cloudinary 설정이 필요합니다. .env 파일에 VITE_CLOUDINARY_CLOUD_NAME과 VITE_CLOUDINARY_UPLOAD_PRESET을 설정하고 서버를 재시작하세요.
+                ℹ️ Cloudinary를 사용하려면 .env 파일에 VITE_CLOUDINARY_CLOUD_NAME과 VITE_CLOUDINARY_UPLOAD_PRESET을 설정하고 서버를 재시작하세요. (선택사항: URL을 직접 입력할 수도 있습니다)
               </div>
             )}
             <div style={{
@@ -621,7 +576,7 @@ function CreateProduct() {
                 value={formData.image}
                 onChange={handleChange}
                 required
-                placeholder="Cloudinary에서 업로드하거나 URL을 직접 입력하세요"
+                placeholder="이미지 URL을 입력하세요 (예: https://example.com/image.jpg)"
                 style={{
                   flex: 1,
                   padding: '12px 16px',

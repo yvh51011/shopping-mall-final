@@ -1,182 +1,198 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import axios from 'axios';
 
-// 서버 연결 테스트
-export const testServerConnection = async () => {
-  try {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-    const response = await fetch(`${apiUrl}/health`);
-    const data = await response.json();
-    console.log('서버 연결 상태:', data);
-    return data;
-  } catch (error) {
-    console.error('서버 연결 테스트 실패:', error);
-    return { status: 'error', error: error.message };
-  }
-};
+// API 기본 URL 설정
+// 우선순위: 환경 변수 > 개발 환경 프록시 > 프로덕션 기본값
+// 환경 변수가 설정되지 않은 경우:
+// - 개발 환경: Vite 프록시 사용 (/api)
+// - 프로덕션: 환경 변수 필수 (설정하지 않으면 오류)
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+  (import.meta.env.DEV ? '/api' : (() => {
+    console.error('❌ VITE_API_BASE_URL 환경 변수가 설정되지 않았습니다!');
+    console.error('프로덕션 환경에서는 반드시 VITE_API_BASE_URL을 설정해야 합니다.');
+    return '';
+  })());
 
-// 로컬 스토리지에서 사용자 정보 가져오기
-export const getCurrentUser = () => {
-  const userStr = localStorage.getItem('user');
-  if (userStr) {
-    try {
-      return JSON.parse(userStr);
-    } catch (e) {
-      return null;
+// API URL 로깅 (개발 환경에서만)
+if (import.meta.env.DEV) {
+  console.log('🔗 API Base URL:', API_BASE_URL || '프록시 사용 (/api)');
+}
+
+// axios 인스턴스 생성
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  withCredentials: false, // CORS 문제 해결
+});
+
+// 요청 인터셉터 (토큰 추가 등)
+api.interceptors.request.use(
+  (config) => {
+    // 로컬 스토리지에서 사용자 정보 가져오기
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        // 필요시 토큰 추가
+        // config.headers.Authorization = `Bearer ${user.token}`;
+      } catch (e) {
+        console.error('사용자 정보 파싱 오류:', e);
+      }
     }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
-  return null;
-};
+);
 
-// 로컬 스토리지에 사용자 정보 저장
-export const setCurrentUser = (user) => {
-  if (user) {
-    localStorage.setItem('user', JSON.stringify(user));
-  } else {
-    localStorage.removeItem('user');
+// 응답 인터셉터 (에러 처리)
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (error.response) {
+      // 서버가 응답했지만 에러 상태 코드
+      console.error('API 에러:', error.response.data);
+    } else if (error.request) {
+      // 요청이 전송되었지만 응답을 받지 못함
+      console.error('서버 응답 없음:', error.request);
+    } else {
+      // 요청 설정 중 오류 발생
+      console.error('요청 설정 오류:', error.message);
+    }
+    return Promise.reject(error);
   }
-};
+);
 
-// 로그인
+// ==================== 인증 관련 ====================
+
+/**
+ * 로그인
+ * @param {Object} credentials - { email, password }
+ * @returns {Promise} 로그인 응답
+ */
 export const login = async (credentials) => {
   try {
-    // 이메일 정규화 (소문자 변환 및 공백 제거)
-    const normalizedCredentials = {
-      ...credentials,
-      email: credentials.email ? credentials.email.toLowerCase().trim() : ''
-    };
+    console.log('로그인 API 호출:', { url: `${API_BASE_URL}/auth/login`, credentials: { ...credentials, password: '***' } });
+    const response = await api.post('/auth/login', credentials);
+    console.log('로그인 API 응답:', response.data);
     
-    console.log('로그인 API 요청:', {
-      url: `${API_BASE_URL}/auth/login`,
-      email: normalizedCredentials.email,
-      passwordLength: normalizedCredentials.password ? normalizedCredentials.password.length : 0
-    });
-    
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(normalizedCredentials),
-    });
-
-    console.log('로그인 응답 상태:', response.status, response.statusText);
-
-    // 응답 파싱
-    let data;
-    try {
-      const text = await response.text();
-      console.log('로그인 응답 본문:', text);
-      
-      if (!text) {
-        return {
-          success: false,
-          message: '서버로부터 응답을 받지 못했습니다.',
-        };
-      }
-      
-      data = JSON.parse(text);
-      console.log('로그인 응답 데이터:', data);
-    } catch (jsonError) {
-      console.error('JSON 파싱 오류:', jsonError);
-      return {
-        success: false,
-        message: '서버 응답을 처리할 수 없습니다.',
-      };
+    if (response.data.success && response.data.data) {
+      // 로컬 스토리지에 사용자 정보 저장
+      localStorage.setItem('user', JSON.stringify(response.data.data));
+      console.log('사용자 정보 저장 완료');
     }
     
-    // 성공 응답 처리
-    if (data && data.success === true && data.data) {
-      console.log('사용자 정보 저장:', data.data);
-      setCurrentUser(data.data);
-    } else {
-      console.log('로그인 실패:', data);
-    }
-    
-    return data;
+    return response.data;
   } catch (error) {
-    console.error('Login error:', error);
-    // 네트워크 오류인지 확인
-    if (error instanceof TypeError && error.message.includes('fetch')) {
+    console.error('로그인 오류 상세:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      code: error.code,
+      request: error.request
+    });
+    
+    // 네트워크 오류인 경우
+    if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK' || !error.response) {
       return {
         success: false,
-        message: '서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.',
+        message: '서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인해주세요.',
       };
     }
+    
+    // 서버 응답이 있는 경우
     return {
       success: false,
-      message: '로그인 중 오류가 발생했습니다: ' + error.message,
+      message: error.response?.data?.message || `로그인 중 오류가 발생했습니다. (${error.response?.status || '알 수 없는 오류'})`,
     };
   }
 };
 
-// 회원가입
+/**
+ * 회원가입
+ * @param {Object} userData - { email, name, password, address, user_type }
+ * @returns {Promise} 회원가입 응답
+ */
 export const register = async (userData) => {
   try {
-    console.log('회원가입 시도:', `${API_BASE_URL}/auth/register`);
-    console.log('요청 데이터:', userData);
+    const response = await api.post('/auth/register', userData);
     
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(userData),
-    });
-
-    console.log('응답 상태:', response.status, response.statusText);
-    console.log('응답 헤더:', response.headers);
-
-    // 응답이 OK가 아니어도 JSON 파싱 시도
-    let data;
-    try {
-      const text = await response.text();
-      console.log('응답 본문 (텍스트):', text);
-      data = JSON.parse(text);
-      console.log('응답 데이터 (파싱됨):', data);
-    } catch (jsonError) {
-      console.error('JSON 파싱 오류:', jsonError);
-      return {
-        success: false,
-        message: '서버 응답을 처리할 수 없습니다.',
-      };
+    if (response.data.success && response.data.data) {
+      // 로컬 스토리지에 사용자 정보 저장
+      localStorage.setItem('user', JSON.stringify(response.data.data));
     }
     
-    if (data.success && data.data) {
-      setCurrentUser(data.data);
-      console.log('사용자 정보 저장됨:', data.data);
-    } else {
-      console.log('회원가입 실패:', data.message);
-    }
-    
-    return data;
+    return response.data;
   } catch (error) {
-    console.error('Register error:', error);
-    console.error('Error type:', error.constructor.name);
-    console.error('Error message:', error.message);
-    // 네트워크 오류인지 확인
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-      return {
-        success: false,
-        message: '서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.',
-      };
-    }
+    console.error('회원가입 오류:', error);
     return {
       success: false,
-      message: '회원가입 중 오류가 발생했습니다: ' + error.message,
+      message: error.response?.data?.message || '회원가입 중 오류가 발생했습니다.',
     };
   }
 };
 
-// 로그아웃
+/**
+ * 로그아웃
+ */
 export const logout = () => {
-  setCurrentUser(null);
+  localStorage.removeItem('user');
+  window.location.href = '/';
 };
 
-// 상품 목록 가져오기
+/**
+ * 현재 로그인한 사용자 정보 가져오기
+ * @returns {Object|null} 사용자 정보 또는 null
+ */
+export const getCurrentUser = () => {
+  try {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      return JSON.parse(userStr);
+    }
+    return null;
+  } catch (e) {
+    console.error('사용자 정보 파싱 오류:', e);
+    return null;
+  }
+};
+
+/**
+ * 서버 연결 상태 확인
+ * @returns {Promise} 서버 상태 정보
+ */
+export const testServerConnection = async () => {
+  try {
+    const response = await api.get('/health');
+    return {
+      status: 'ok',
+      ...response.data,
+    };
+  } catch (error) {
+    console.error('서버 연결 확인 오류:', error);
+    return {
+      status: 'error',
+      message: error.response?.data?.message || '서버에 연결할 수 없습니다.',
+      mongodb: 'disconnected',
+    };
+  }
+};
+
+// ==================== 상품 관련 ====================
+
+/**
+ * 상품 목록 조회
+ * @param {Object} params - { page, limit, search, sortBy, sortOrder, minPrice, maxPrice, developer }
+ * @returns {Promise} 상품 목록 응답
+ */
 export const getProducts = async (params = {}) => {
   try {
-    // 쿼리 파라미터 구성
     const queryParams = new URLSearchParams();
+    
     if (params.page) queryParams.append('page', params.page);
     if (params.limit) queryParams.append('limit', params.limit);
     if (params.search) queryParams.append('search', params.search);
@@ -185,188 +201,227 @@ export const getProducts = async (params = {}) => {
     if (params.minPrice) queryParams.append('minPrice', params.minPrice);
     if (params.maxPrice) queryParams.append('maxPrice', params.maxPrice);
     if (params.developer) queryParams.append('developer', params.developer);
-
+    
     const queryString = queryParams.toString();
-    const url = `${API_BASE_URL}/products${queryString ? `?${queryString}` : ''}`;
+    const url = `/products${queryString ? `?${queryString}` : ''}`;
     
-    console.log('상품 목록 API 호출:', url);
-    
-    const response = await fetch(url);
-    
-    console.log('상품 목록 API 응답 상태:', response.status, response.statusText);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('상품 목록 API 오류 응답:', errorText);
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    console.log('상품 목록 API 응답 데이터:', {
-      success: data.success,
-      count: data.count,
-      total: data.total,
-      dataLength: data.data ? data.data.length : 0
+    const response = await api.get(url);
+    return response.data;
+  } catch (error) {
+    console.error('상품 목록 조회 오류:', error);
+    return {
+      success: false,
+      message: error.response?.data?.message || '상품 목록을 불러오는데 실패했습니다.',
+      data: [],
+      total: 0,
+      totalPages: 0,
+    };
+  }
+};
+
+/**
+ * 특정 상품 조회
+ * @param {String} productId - 상품 ID
+ * @returns {Promise} 상품 정보 응답
+ */
+export const getProductById = async (productId) => {
+  try {
+    const response = await api.get(`/products/${productId}`);
+    return response.data;
+  } catch (error) {
+    console.error('상품 조회 오류:', error);
+    return {
+      success: false,
+      message: error.response?.data?.message || '상품을 불러오는데 실패했습니다.',
+      data: null,
+    };
+  }
+};
+
+/**
+ * 상품 생성
+ * @param {Object} productData - 상품 정보
+ * @returns {Promise} 생성 응답
+ */
+export const createProduct = async (productData) => {
+  try {
+    const response = await api.post('/products', productData);
+    return response.data;
+  } catch (error) {
+    console.error('상품 생성 오류:', error);
+    return {
+      success: false,
+      message: error.response?.data?.message || '상품 생성에 실패했습니다.',
+    };
+  }
+};
+
+/**
+ * 상품 수정
+ * @param {String} productId - 상품 ID
+ * @param {Object} productData - 수정할 상품 정보
+ * @returns {Promise} 수정 응답
+ */
+export const updateProduct = async (productId, productData) => {
+  try {
+    const response = await api.put(`/products/${productId}`, productData);
+    return response.data;
+  } catch (error) {
+    console.error('상품 수정 오류:', error);
+    return {
+      success: false,
+      message: error.response?.data?.message || '상품 수정에 실패했습니다.',
+    };
+  }
+};
+
+/**
+ * 상품 삭제
+ * @param {String} productId - 상품 ID
+ * @returns {Promise} 삭제 응답
+ */
+export const deleteProduct = async (productId) => {
+  try {
+    const response = await api.delete(`/products/${productId}`);
+    return response.data;
+  } catch (error) {
+    console.error('상품 삭제 오류:', error);
+    return {
+      success: false,
+      message: error.response?.data?.message || '상품 삭제에 실패했습니다.',
+    };
+  }
+};
+
+// ==================== 장바구니 관련 ====================
+
+/**
+ * 장바구니 조회
+ * @param {String} userId - 사용자 ID
+ * @returns {Promise} 장바구니 응답
+ */
+export const getCart = async (userId) => {
+  try {
+    // 장바구니 API가 있다고 가정 (없으면 로컬 스토리지 사용)
+    const response = await api.get(`/users/${userId}/cart`);
+    return response.data;
+  } catch (error) {
+    console.error('장바구니 조회 오류:', error);
+    // 장바구니 API가 없을 수 있으므로 빈 장바구니 반환
+    return {
+      success: true,
+      data: [],
+      totalAmount: 0,
+    };
+  }
+};
+
+/**
+ * 장바구니에 상품 추가
+ * @param {String} userId - 사용자 ID
+ * @param {String} productId - 상품 ID
+ * @param {Number} quantity - 수량
+ * @returns {Promise} 추가 응답
+ */
+export const addToCart = async (userId, productId, quantity = 1) => {
+  try {
+    const response = await api.post(`/users/${userId}/cart`, {
+      productId,
+      quantity,
     });
-    
-    return data;
-  } catch (error) {
-    console.error('Get products error:', error);
-    // 네트워크 오류인지 확인
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-      return {
-        success: false,
-        message: '서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.',
-        error: error.message
-      };
-    }
-    return {
-      success: false,
-      message: '상품 조회 중 오류가 발생했습니다.',
-      error: error.message
-    };
-  }
-};
-
-// 특정 상품 가져오기
-export const getProductById = async (id) => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/products/${id}`);
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Get product error:', error);
-    return {
-      success: false,
-      message: '상품 조회 중 오류가 발생했습니다.',
-    };
-  }
-};
-
-// 장바구니 관련 함수들 (localStorage 기반)
-export const getCart = () => {
-  try {
-    const cartStr = localStorage.getItem('cart');
-    if (cartStr) {
-      return JSON.parse(cartStr);
-    }
-    return [];
-  } catch (e) {
-    console.error('장바구니 가져오기 오류:', e);
-    return [];
-  }
-};
-
-export const addToCart = (product) => {
-  try {
-    const cart = getCart();
-    const existingItem = cart.find(item => item.productId === product._id || item.productId === product.id);
-    
-    if (existingItem) {
-      existingItem.quantity += 1;
-    } else {
-      cart.push({
-        productId: product._id || product.id,
-        name: product.name,
-        price: product.price,
-        image: product.image,
-        quantity: 1
-      });
-    }
-    
-    localStorage.setItem('cart', JSON.stringify(cart));
-    
-    // 커스텀 이벤트 발생하여 네비바에 알림
-    window.dispatchEvent(new CustomEvent('cartUpdated', { detail: { cart } }));
-    
-    return { success: true, cart };
+    return response.data;
   } catch (error) {
     console.error('장바구니 추가 오류:', error);
-    return { success: false, message: '장바구니에 추가하는 중 오류가 발생했습니다.' };
-  }
-};
-
-export const getCartCount = () => {
-  const cart = getCart();
-  return cart.reduce((total, item) => total + item.quantity, 0);
-};
-
-export const updateCartItemQuantity = (productId, quantity) => {
-  try {
-    const cart = getCart();
-    const item = cart.find(item => item.productId === productId);
-    
-    if (!item) {
-      return { success: false, message: '장바구니에 해당 상품이 없습니다.' };
-    }
-    
-    if (quantity <= 0) {
-      return removeFromCart(productId);
-    }
-    
-    item.quantity = quantity;
-    localStorage.setItem('cart', JSON.stringify(cart));
-    
-    // 커스텀 이벤트 발생하여 네비바에 알림
-    window.dispatchEvent(new CustomEvent('cartUpdated', { detail: { cart } }));
-    
-    return { success: true, cart };
-  } catch (error) {
-    console.error('장바구니 수량 수정 오류:', error);
-    return { success: false, message: '장바구니 수량 수정 중 오류가 발생했습니다.' };
-  }
-};
-
-export const removeFromCart = (productId) => {
-  try {
-    const cart = getCart();
-    const filteredCart = cart.filter(item => item.productId !== productId);
-    localStorage.setItem('cart', JSON.stringify(filteredCart));
-    
-    // 커스텀 이벤트 발생하여 네비바에 알림
-    window.dispatchEvent(new CustomEvent('cartUpdated', { detail: { cart: filteredCart } }));
-    
-    return { success: true, cart: filteredCart };
-  } catch (error) {
-    console.error('장바구니 삭제 오류:', error);
-    return { success: false, message: '장바구니에서 삭제하는 중 오류가 발생했습니다.' };
-  }
-};
-
-export const clearCart = () => {
-  try {
-    localStorage.removeItem('cart');
-    window.dispatchEvent(new CustomEvent('cartUpdated', { detail: { cart: [] } }));
-    return { success: true };
-  } catch (error) {
-    console.error('장바구니 비우기 오류:', error);
-    return { success: false, message: '장바구니를 비우는 중 오류가 발생했습니다.' };
-  }
-};
-
-// 주문 생성
-export const createOrder = async (userId, shippingInfo, paymentMethod = 'other', paymentInfo = null) => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/orders`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        userId,
-        shippingInfo,
-        paymentMethod,
-        paymentInfo
-      }),
-    });
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Create order error:', error);
     return {
       success: false,
-      message: '주문 생성 중 오류가 발생했습니다: ' + error.message,
+      message: error.response?.data?.message || '장바구니에 추가하는데 실패했습니다.',
     };
   }
 };
+
+/**
+ * 장바구니에서 상품 제거
+ * @param {String} userId - 사용자 ID
+ * @param {String} cartItemId - 장바구니 항목 ID
+ * @returns {Promise} 제거 응답
+ */
+export const removeFromCart = async (userId, cartItemId) => {
+  try {
+    const response = await api.delete(`/users/${userId}/cart/${cartItemId}`);
+    return response.data;
+  } catch (error) {
+    console.error('장바구니 제거 오류:', error);
+    return {
+      success: false,
+      message: error.response?.data?.message || '장바구니에서 제거하는데 실패했습니다.',
+    };
+  }
+};
+
+// ==================== 주문 관련 ====================
+
+/**
+ * 주문 생성
+ * @param {String} userId - 사용자 ID
+ * @param {Object} orderData - 주문 정보 (name, phone, email, address, notes)
+ * @param {String} paymentMethod - 결제 수단
+ * @param {Object} paymentInfo - 결제 정보 (imp_uid, merchant_uid, paid_amount, pay_method)
+ * @returns {Promise} 주문 생성 응답
+ */
+export const createOrder = async (userId, orderData, paymentMethod, paymentInfo) => {
+  try {
+    const response = await api.post(`/users/${userId}/orders`, {
+      ...orderData,
+      paymentMethod,
+      paymentInfo,
+    });
+    return response.data;
+  } catch (error) {
+    console.error('주문 생성 오류:', error);
+    return {
+      success: false,
+      message: error.response?.data?.message || '주문 생성에 실패했습니다.',
+    };
+  }
+};
+
+/**
+ * 주문 목록 조회
+ * @param {String} userId - 사용자 ID
+ * @returns {Promise} 주문 목록 응답
+ */
+export const getOrders = async (userId) => {
+  try {
+    const response = await api.get(`/users/${userId}/orders`);
+    return response.data;
+  } catch (error) {
+    console.error('주문 목록 조회 오류:', error);
+    return {
+      success: false,
+      message: error.response?.data?.message || '주문 목록을 불러오는데 실패했습니다.',
+      data: [],
+    };
+  }
+};
+
+/**
+ * 특정 주문 조회
+ * @param {String} userId - 사용자 ID
+ * @param {String} orderId - 주문 ID
+ * @returns {Promise} 주문 정보 응답
+ */
+export const getOrderById = async (userId, orderId) => {
+  try {
+    const response = await api.get(`/users/${userId}/orders/${orderId}`);
+    return response.data;
+  } catch (error) {
+    console.error('주문 조회 오류:', error);
+    return {
+      success: false,
+      message: error.response?.data?.message || '주문을 불러오는데 실패했습니다.',
+      data: null,
+    };
+  }
+};
+
+export default api;

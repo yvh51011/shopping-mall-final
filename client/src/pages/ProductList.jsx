@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { getCurrentUser, getProducts } from '../utils/api';
-
-const API_BASE_URL = 'http://localhost:5000/api';
+import { getCurrentUser, getProducts, deleteProduct } from '../utils/api';
 
 function ProductList() {
   const navigate = useNavigate();
@@ -73,20 +71,13 @@ function ProductList() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
+      const response = await deleteProduct(productId);
 
-      const data = await response.json();
-
-      if (data.success) {
+      if (response.success) {
         alert('상품이 삭제되었습니다.');
         fetchProducts();
       } else {
-        alert('상품 삭제에 실패했습니다: ' + (data.message || '알 수 없는 오류'));
+        alert('상품 삭제에 실패했습니다: ' + (response.message || '알 수 없는 오류'));
       }
     } catch (error) {
       console.error('상품 삭제 오류:', error);
