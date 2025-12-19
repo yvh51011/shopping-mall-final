@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { getCurrentUser, getProductById } from '../utils/api';
+import Navbar from '../components/Navbar';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -136,8 +137,12 @@ function ProductDetail() {
       color: '#333',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif'
     }}>
+      {/* 네비게이션 바 */}
+      <Navbar />
+      
       {/* 헤더 */}
       <header style={{
+        marginTop: '70px',
         backgroundColor: '#fff',
         borderBottom: '1px solid #e0e0e0',
         padding: '20px 40px',
@@ -516,6 +521,7 @@ function ProductDetail() {
 }
 
 export default ProductDetail;
+
 
 
 

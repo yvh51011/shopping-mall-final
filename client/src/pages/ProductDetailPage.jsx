@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getProductById } from '../utils/api';
+import { getProductById, addToCart, getCurrentUser } from '../utils/api';
 
 function ProductDetailPage() {
   const navigate = useNavigate();
@@ -61,8 +61,24 @@ function ProductDetailPage() {
   }, [id, fetchProduct]);
 
   const handleAddToCart = () => {
-    // TODO: 장바구니 기능 구현
-    alert('장바구니에 추가되었습니다!');
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      alert('로그인이 필요합니다.');
+      navigate('/login');
+      return;
+    }
+    
+    if (!product) {
+      alert('상품 정보를 불러올 수 없습니다.');
+      return;
+    }
+    
+    const result = addToCart(product);
+    if (result.success) {
+      alert('장바구니에 추가되었습니다!');
+    } else {
+      alert(result.message || '장바구니에 추가하는 중 오류가 발생했습니다.');
+    }
   };
 
   const handleExperienceProgram = () => {

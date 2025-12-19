@@ -7,6 +7,8 @@ import ProductList from './pages/ProductList';
 import ProductDetail from './pages/ProductDetail';
 import ProductDetailPage from './pages/ProductDetailPage';
 import CreateProduct from './pages/CreateProduct';
+import Cart from './pages/Cart';
+import Checkout from './pages/Checkout';
 import './App.css';
 
 function App() {
@@ -17,6 +19,8 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/product/:id" element={<ProductDetailPage />} />
+        <Route path="/cart" element={<Cart />} />
+        <Route path="/checkout" element={<Checkout />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/admin/products" element={<ProductList />} />
         <Route path="/admin/products/:id" element={<ProductDetail />} />

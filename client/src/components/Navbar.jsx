@@ -1,33 +1,48 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getCurrentUser, logout } from '../utils/api';
+import { getCurrentUser, logout, getCartCount } from '../utils/api';
 
 function Navbar() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
     // 사용자 정보 확인
     const currentUser = getCurrentUser();
     setUser(currentUser);
+    
+    // 장바구니 수량 초기화
+    setCartCount(getCartCount());
 
     // localStorage 변경 감지
     const handleStorageChange = () => {
       const updatedUser = getCurrentUser();
       setUser(updatedUser);
     };
+    
+    // 장바구니 업데이트 이벤트 리스너
+    const handleCartUpdated = (event) => {
+      const count = getCartCount();
+      setCartCount(count);
+    };
 
     window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('cartUpdated', handleCartUpdated);
+    
     // 컴포넌트 마운트 시에도 확인
     const interval = setInterval(() => {
       const updatedUser = getCurrentUser();
       if (updatedUser !== user) {
         setUser(updatedUser);
       }
+      // 장바구니 수량도 주기적으로 확인
+      setCartCount(getCartCount());
     }, 1000);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('cartUpdated', handleCartUpdated);
       clearInterval(interval);
     };
   }, [user]);
@@ -89,6 +104,49 @@ function Navbar() {
           onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
           onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}>
           코드로 세상을 바꾸다
+        </Link>
+        
+        {/* 장바구니 아이콘 */}
+        <Link
+          to="/cart"
+          style={{
+            position: 'relative',
+            color: '#fff',
+            textDecoration: 'none',
+            fontSize: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '40px',
+            height: '40px',
+            transition: 'opacity 0.2s'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
+          onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+        >
+          <span>🛒</span>
+          {cartCount > 0 && (
+            <span
+              style={{
+                position: 'absolute',
+                top: '-5px',
+                right: '-5px',
+                backgroundColor: '#90EE90',
+                color: '#000',
+                borderRadius: '50%',
+                width: '20px',
+                height: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.75rem',
+                fontWeight: 'bold',
+                border: '2px solid #000'
+              }}
+            >
+              {cartCount > 99 ? '99+' : cartCount}
+            </span>
+          )}
         </Link>
         
         {user ? (
