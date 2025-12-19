@@ -69,7 +69,7 @@ function Admin() {
           fontWeight: 'bold',
           color: '#333'
         }}>
-          전북대 영어영문학과
+          전북대학교 영어영문학과
         </div>
         <Link 
           to="/"
