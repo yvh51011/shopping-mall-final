@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import ThreeBackground from '../components/ThreeBackground';
 import { getProducts } from '../utils/api';
@@ -9,15 +9,10 @@ const styles = {
   container: {
     fontFamily: 'Arial, sans-serif',
     minHeight: '100vh',
-    width: '100%',
     backgroundColor: '#0a0a0a',
     color: '#fff',
     position: 'relative',
-    overflowX: 'hidden',
-    overflowY: 'auto',
-    margin: 0,
-    padding: 0,
-    boxSizing: 'border-box'
+    overflow: 'hidden'
   },
   heroSection: {
     minHeight: '100vh',
@@ -144,130 +139,89 @@ const styles = {
 };
 
 // 프로그램 카드 컴포넌트
-const ProgramCard = ({ product, onHover, navigate }) => {
-  const handleClick = () => {
-    // 상품 디테일 페이지로 이동
-    const productId = product._id || product.productId;
-    console.log('상품 클릭:', { productId, product });
-    if (productId) {
-      console.log('상품 디테일 페이지로 이동:', `/product/${productId}`);
-      navigate(`/product/${productId}`);
-    } else {
-      console.error('상품 ID를 찾을 수 없습니다:', product);
-    }
-  };
-
+const ProgramCard = React.memo(({ product, onHover }) => {
+  const { _id, name, description, price, image, developer } = product;
+  const [imageError, setImageError] = useState(false);
+  
   return (
-    <div 
-      style={styles.programCard}
-      onClick={handleClick}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-5px)';
-        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-        e.currentTarget.style.cursor = product.link ? 'pointer' : 'default';
-        if (onHover) onHover();
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+    <Link
+      to={`/product/${_id}`}
+      style={{
+        textDecoration: 'none',
+        color: 'inherit'
       }}
     >
-      {product.image && (
-        <img 
-          src={product.image} 
-          alt={product.name}
-          style={{
+      <div 
+        style={styles.programCard}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'translateY(-5px)';
+          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+          if (onHover) onHover();
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'translateY(0)';
+          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+        }}
+      >
+        {image && !imageError ? (
+          <img
+            src={image}
+            alt={name}
+            style={{
+              width: '100%',
+              height: '200px',
+              objectFit: 'cover',
+              borderRadius: '8px',
+              marginBottom: '15px',
+              border: '1px solid rgba(255, 255, 255, 0.1)'
+            }}
+            onError={() => {
+              setImageError(true);
+            }}
+          />
+        ) : (
+          <div style={{
             width: '100%',
             height: '200px',
-            objectFit: 'cover',
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
             borderRadius: '8px',
-            marginBottom: '16px',
-            border: '1px solid rgba(255, 255, 255, 0.1)'
-          }}
-        />
-      )}
-      <h3 style={styles.programTitle}>{product.name}</h3>
-      <p style={styles.programDescription}>{product.description}</p>
-      {product.developer && (
-        <p style={{
-          fontSize: '0.9rem',
-          color: 'rgba(255, 255, 255, 0.6)',
-          marginBottom: '12px',
-          fontStyle: 'italic'
-        }}>
-          개발자: {product.developer}
-        </p>
-      )}
-      <p style={styles.programPrice}>₩{product.price.toLocaleString()}</p>
-      {product.link && (
-        <p style={{
-          fontSize: '0.85rem',
-          color: 'rgba(255, 255, 255, 0.5)',
-          marginTop: '12px',
-          textDecoration: 'underline'
-        }}>
-          프로그램 보기 →
-        </p>
-      )}
-    </div>
+            marginBottom: '15px',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'rgba(255, 255, 255, 0.3)',
+            fontSize: '3rem'
+          }}>
+            📦
+          </div>
+        )}
+        <h3 style={styles.programTitle}>{name}</h3>
+        {developer && (
+          <p style={{
+            fontSize: '0.9rem',
+            color: 'rgba(255, 255, 255, 0.6)',
+            marginBottom: '10px'
+          }}>
+            개발자: {developer}
+          </p>
+        )}
+        <p style={styles.programDescription}>{description}</p>
+        <p style={styles.programPrice}>₩{price?.toLocaleString() || '0'}</p>
+      </div>
+    </Link>
   );
-};
+});
+
+ProgramCard.displayName = 'ProgramCard';
 
 function Home() {
-  const navigate = useNavigate();
+  console.log('🏠 Home 컴포넌트 렌더링 중...');
+  
   const programsSectionRef = useRef(null);
-  const [programs, setPrograms] = useState([]);
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  // API에서 상품 목록 가져오기
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        setError('');
-        
-        console.log('🔄 상품 목록 가져오기 시작...');
-        
-        // 모든 상품을 가져오기 위해 큰 limit 값 사용
-        const result = await getProducts({
-          page: 1,
-          limit: 1000, // 충분히 큰 값으로 모든 상품 가져오기
-          sortBy: 'createdAt',
-          sortOrder: 'desc' // 최신순
-        });
-
-        console.log('📦 상품 조회 응답:', result);
-
-        // 서버 응답 구조: { success: true, data: [...], total, ... }
-        if (result && result.success && result.data) {
-          if (Array.isArray(result.data)) {
-            setPrograms(result.data);
-            console.log(`✅ ${result.data.length}개의 상품을 불러왔습니다. (전체 ${result.total || result.data.length}개)`);
-            
-            // 상품이 없을 때도 로그 출력
-            if (result.data.length === 0) {
-              console.log('⚠️ 등록된 상품이 없습니다.');
-            }
-          } else {
-            console.warn('⚠️ 응답 데이터가 배열이 아닙니다:', typeof result.data);
-            setPrograms([]);
-          }
-        } else {
-          const errorMessage = result?.message || '상품을 불러오는데 실패했습니다.';
-          setError(errorMessage);
-          console.error('❌ 상품 조회 실패:', result);
-        }
-      } catch (err) {
-        console.error('❌ 상품 조회 중 오류:', err);
-        setError('상품을 불러오는 중 오류가 발생했습니다: ' + err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProducts();
-  }, []);
 
   // 스크롤 핸들러
   const scrollToPrograms = () => {
@@ -276,17 +230,43 @@ function Home() {
       block: 'start'
     });
   };
-
-  // URL 해시 확인하여 상품 목록 섹션으로 스크롤
+  
+  // 상품 데이터 가져오기
   useEffect(() => {
-    if (window.location.hash === '#programs') {
-      // 약간의 지연을 두어 DOM이 완전히 렌더링된 후 스크롤
-      setTimeout(() => {
-        scrollToPrograms();
-        // 해시 제거 (선택사항)
-        window.history.replaceState(null, '', window.location.pathname);
-      }, 100);
-    }
+    console.log('✅ Home 컴포넌트 마운트 완료');
+    
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        
+        const response = await getProducts({
+          page: 1,
+          limit: 12, // 홈 화면에 최대 12개 상품 표시
+          sortBy: 'createdAt',
+          sortOrder: 'desc'
+        });
+        
+        if (response.success && response.data) {
+          setProducts(response.data);
+          console.log('✅ 상품 목록 로드 완료:', response.data.length, '개');
+        } else {
+          setError(response.message || '상품을 불러오는데 실패했습니다.');
+          console.error('❌ 상품 목록 로드 실패:', response.message);
+        }
+      } catch (err) {
+        console.error('❌ 상품 목록 조회 오류:', err);
+        setError('상품을 불러오는 중 오류가 발생했습니다.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchProducts();
+    
+    return () => {
+      console.log('🔄 Home 컴포넌트 언마운트');
+    };
   }, []);
 
   return (
@@ -325,7 +305,7 @@ function Home() {
       </div>
 
       {/* 프로그램 소개 섹션 */}
-      <div id="programs-section" ref={programsSectionRef} style={styles.sectionContainer}>
+      <div ref={programsSectionRef} style={styles.sectionContainer}>
         <h2 style={styles.sectionTitle}>Our Web Programs</h2>
         <p style={{ 
           textAlign: 'center', 
@@ -339,7 +319,7 @@ function Home() {
           다양한 웹프로그램을 만나보세요.
         </p>
         
-        {loading && (
+        {loading ? (
           <div style={{
             textAlign: 'center',
             padding: '60px 20px',
@@ -348,25 +328,16 @@ function Home() {
           }}>
             상품을 불러오는 중...
           </div>
-        )}
-
-        {error && (
+        ) : error ? (
           <div style={{
             textAlign: 'center',
-            padding: '40px 20px',
-            color: '#ff5252',
-            fontSize: '1rem',
-            backgroundColor: 'rgba(255, 82, 82, 0.1)',
-            borderRadius: '8px',
-            marginBottom: '30px',
-            maxWidth: '600px',
-            margin: '0 auto 30px'
+            padding: '60px 20px',
+            color: '#ff4444',
+            fontSize: '1.1rem'
           }}>
             {error}
           </div>
-        )}
-
-        {!loading && !error && programs.length === 0 && (
+        ) : products.length === 0 ? (
           <div style={{
             textAlign: 'center',
             padding: '60px 20px',
@@ -375,15 +346,12 @@ function Home() {
           }}>
             등록된 상품이 없습니다.
           </div>
-        )}
-
-        {!loading && programs.length > 0 && (
+        ) : (
           <div style={styles.programGrid}>
-            {programs.map((program) => (
+            {products.map((product) => (
               <ProgramCard
-                key={program._id || program.productId}
-                product={program}
-                navigate={navigate}
+                key={product._id}
+                product={product}
               />
             ))}
           </div>

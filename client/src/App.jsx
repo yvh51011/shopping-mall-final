@@ -9,6 +9,8 @@ import CreateProduct from './pages/CreateProduct';
 import './App.css';
 
 function App() {
+  console.log('📱 App 컴포넌트 렌더링 중...');
+  
   return (
     <Router>
       <Routes>

@@ -5,13 +5,48 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>전북대 영어영문학과</title>
+    <style>
+      /* 기본 스타일 - CSS가 로드되기 전에도 보이도록 */
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #0a0a0a;
+        color: #fff;
+        font-family: Arial, sans-serif;
+      }
+      #root {
+        min-height: 100vh;
+        background-color: #0a0a0a;
+      }
+      /* 로딩 표시 */
+      #root:empty::before {
+        content: "로딩 중...";
+        display: block;
+        padding: 40px;
+        text-align: center;
+        color: #fff;
+      }
+    </style>
     <!-- Cloudinary Upload Widget -->
-    <script src="https://upload-widget.cloudinary.com/global/all.js" type="text/javascript"></script>
+    <script src="https://upload-widget.cloudinary.com/global/all.js" type="text/javascript" defer></script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
-    <script src="https://cdn.iamport.kr/v1/iamport.js"></script> 
+    <script src="https://cdn.iamport.kr/v1/iamport.js" defer></script>
+    <script>
+      // 기본 오류 처리
+      window.addEventListener('error', function(e) {
+        console.error('전역 오류:', e.error);
+        const root = document.getElementById('root');
+        if (root && !root.innerHTML.trim()) {
+          root.innerHTML = '<div style="padding: 40px; color: #ff4444;"><h1>오류 발생</h1><p>' + e.error.message + '</p></div>';
+        }
+      });
+      window.addEventListener('unhandledrejection', function(e) {
+        console.error('처리되지 않은 Promise 거부:', e.reason);
+      });
+    </script>
   </body>
 </html>
 
