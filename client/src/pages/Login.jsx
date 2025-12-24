@@ -104,14 +104,22 @@ function Login() {
       <h1 style={{ fontSize: '2.5rem', marginBottom: '30px' }}>로그인</h1>
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: '20px', textAlign: 'left' }}>
-          <label style={{ display: 'block', marginBottom: '8px', fontSize: '1.1rem' }}>
-            이메일:
+          <label style={{ 
+            display: 'block', 
+            marginBottom: '8px', 
+            fontSize: '1.1rem',
+            fontWeight: 'bold',
+            color: '#000'
+          }}>
+            이메일주소 (아이디)
           </label>
           <input
             type="email"
             name="email"
             value={formData.email}
             onChange={handleChange}
+            placeholder="예: example@email.com"
+            required
             style={{
               width: '100%',
               padding: '12px',
@@ -124,14 +132,22 @@ function Login() {
         </div>
 
         <div style={{ marginBottom: '20px', textAlign: 'left' }}>
-          <label style={{ display: 'block', marginBottom: '8px', fontSize: '1.1rem' }}>
-            비밀번호:
+          <label style={{ 
+            display: 'block', 
+            marginBottom: '8px', 
+            fontSize: '1.1rem',
+            fontWeight: 'bold',
+            color: '#000'
+          }}>
+            비밀번호
           </label>
           <input
             type="password"
             name="password"
             value={formData.password}
             onChange={handleChange}
+            placeholder="비밀번호를 입력하세요"
+            required
             style={{
               width: '100%',
               padding: '12px',

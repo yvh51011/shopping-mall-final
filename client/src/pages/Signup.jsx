@@ -96,14 +96,22 @@ function Signup() {
       <h1 style={{ fontSize: '2.5rem', marginBottom: '30px' }}>회원가입</h1>
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: '20px', textAlign: 'left' }}>
-          <label style={{ display: 'block', marginBottom: '8px', fontSize: '1.1rem' }}>
-            이메일:
+          <label style={{ 
+            display: 'block', 
+            marginBottom: '8px', 
+            fontSize: '1.1rem',
+            fontWeight: 'bold',
+            color: '#000'
+          }}>
+            이메일 주소 <span style={{ color: '#d32f2f' }}>*</span>
           </label>
           <input
             type="email"
             name="email"
             value={formData.email}
             onChange={handleChange}
+            placeholder="예: example@email.com"
+            required
             style={{
               width: '100%',
               padding: '12px',
@@ -113,17 +121,33 @@ function Signup() {
               boxSizing: 'border-box'
             }}
           />
+          <p style={{ 
+            fontSize: '0.85rem', 
+            color: '#666', 
+            marginTop: '4px',
+            marginBottom: '0'
+          }}>
+            이메일 주소를 아이디로 사용합니다.
+          </p>
         </div>
 
         <div style={{ marginBottom: '20px', textAlign: 'left' }}>
-          <label style={{ display: 'block', marginBottom: '8px', fontSize: '1.1rem' }}>
-            이름:
+          <label style={{ 
+            display: 'block', 
+            marginBottom: '8px', 
+            fontSize: '1.1rem',
+            fontWeight: 'bold',
+            color: '#000'
+          }}>
+            이름 <span style={{ color: '#d32f2f' }}>*</span>
           </label>
           <input
             type="text"
             name="name"
             value={formData.name}
             onChange={handleChange}
+            placeholder="예: 홍길동"
+            required
             style={{
               width: '100%',
               padding: '12px',
@@ -133,17 +157,33 @@ function Signup() {
               boxSizing: 'border-box'
             }}
           />
+          <p style={{ 
+            fontSize: '0.85rem', 
+            color: '#666', 
+            marginTop: '4px',
+            marginBottom: '0'
+          }}>
+            서비스에서 표시될 이름을 입력해주세요.
+          </p>
         </div>
 
         <div style={{ marginBottom: '20px', textAlign: 'left' }}>
-          <label style={{ display: 'block', marginBottom: '8px', fontSize: '1.1rem' }}>
-            비밀번호:
+          <label style={{ 
+            display: 'block', 
+            marginBottom: '8px', 
+            fontSize: '1.1rem',
+            fontWeight: 'bold',
+            color: '#000'
+          }}>
+            비밀번호 <span style={{ color: '#d32f2f' }}>*</span>
           </label>
           <input
             type="password"
             name="password"
             value={formData.password}
             onChange={handleChange}
+            placeholder="최소 4자 이상"
+            required
             style={{
               width: '100%',
               padding: '12px',
@@ -153,17 +193,33 @@ function Signup() {
               boxSizing: 'border-box'
             }}
           />
+          <p style={{ 
+            fontSize: '0.85rem', 
+            color: '#666', 
+            marginTop: '4px',
+            marginBottom: '0'
+          }}>
+            비밀번호는 최소 4자 이상이어야 합니다.
+          </p>
         </div>
 
         <div style={{ marginBottom: '20px', textAlign: 'left' }}>
-          <label style={{ display: 'block', marginBottom: '8px', fontSize: '1.1rem' }}>
-            비밀번호 확인:
+          <label style={{ 
+            display: 'block', 
+            marginBottom: '8px', 
+            fontSize: '1.1rem',
+            fontWeight: 'bold',
+            color: '#000'
+          }}>
+            비밀번호 확인 <span style={{ color: '#d32f2f' }}>*</span>
           </label>
           <input
             type="password"
             name="confirmPassword"
             value={formData.confirmPassword}
             onChange={handleChange}
+            placeholder="위에서 입력한 비밀번호를 다시 입력하세요"
+            required
             style={{
               width: '100%',
               padding: '12px',
@@ -173,17 +229,32 @@ function Signup() {
               boxSizing: 'border-box'
             }}
           />
+          <p style={{ 
+            fontSize: '0.85rem', 
+            color: '#666', 
+            marginTop: '4px',
+            marginBottom: '0'
+          }}>
+            비밀번호를 정확히 입력했는지 확인하기 위해 다시 입력해주세요.
+          </p>
         </div>
 
         <div style={{ marginBottom: '20px', textAlign: 'left' }}>
-          <label style={{ display: 'block', marginBottom: '8px', fontSize: '1.1rem' }}>
-            주소 (선택):
+          <label style={{ 
+            display: 'block', 
+            marginBottom: '8px', 
+            fontSize: '1.1rem',
+            fontWeight: 'bold',
+            color: '#000'
+          }}>
+            주소 (선택사항)
           </label>
           <input
             type="text"
             name="address"
             value={formData.address}
             onChange={handleChange}
+            placeholder="예: 서울특별시 강남구 테헤란로 123"
             style={{
               width: '100%',
               padding: '12px',
@@ -193,6 +264,14 @@ function Signup() {
               boxSizing: 'border-box'
             }}
           />
+          <p style={{ 
+            fontSize: '0.85rem', 
+            color: '#666', 
+            marginTop: '4px',
+            marginBottom: '0'
+          }}>
+            배송이 필요한 경우 주소를 입력해주세요. (선택사항)
+          </p>
         </div>
 
         {serverStatus && serverStatus.mongodb === 'disconnected' && (
